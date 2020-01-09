@@ -1,4 +1,9 @@
 play.yaml
 loop.yaml
 library/*
-terraform.d
+.terraform
+*.plan
+*.lock*
+*.backup
+*.tfstate
+*.log

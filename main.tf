@@ -31,7 +31,7 @@ resource "lxd_container" "first" {
   profiles   = [
       "terraform_default",
   ]
-  image      = "${lxd_cached_image.ubuntu1804.fingerprint}"
+  image      = "lxd_cached_image.ubuntu1804"
   wait_for_network = false
 }
 resource "lxd_container" "second" {
@@ -45,7 +45,7 @@ resource "lxd_container" "second" {
   profiles   = [
       "terraform_default",
   ]
-  image      = "${lxd_cached_image.centos7.fingerprint}"
+  image      = "lxd_cached_image.centos7"
   wait_for_network = false
 }
 # Profile
@@ -57,7 +57,7 @@ resource "lxd_profile" "terraform_default" {
         name       = "root"
         properties = {
             "path" = "/"
-            "pool" = "${lxd_storage_pool.default.name}"
+            "pool" = "lxd"
         }
         type       = "disk"
     }
@@ -66,32 +66,32 @@ resource "lxd_profile" "terraform_default" {
         name       = "eth0"
         properties = {
             "nictype" = "bridged"
-            "parent" = "${lxd_network.lxdbr0.name}"
+            "parent" = "lxd_network.lxdbr0.name"
         }
         type       = "nic"
     }
 }
 # Storage Pool
-resource "lxd_storage_pool" "default" {
-  config = {
-      "size"   = "5GB"
-      "source" = "/var/lib/lxd/disks/default.img"
-      "zfs.pool_name" = "default"
-  }
-  driver = "zfs"
-  name   = "default"
-}
+#resource "lxd_storage_pool" "default" {
+#  config = {
+#      "size"   = "5GB"
+#      "source" = "/var/lib/lxd/disks/default.img"
+#      "zfs.pool_name" = "default"
+#  }
+#  driver = "zfs"
+#  name   = "default"
+#}
 # Bridge Network
-resource "lxd_network" "lxdbr0" {
-  name = "lxdbr0"
-  description = "bridge interface for all containers to access hosts internet"
-  config = {
-    "ipv4.address" = "10.39.58.1/24"
-    "ipv4.nat"     = "true"
-    "ipv6.address" = "fd42:38a5:c677:b741::1/64"
-    "ipv6.nat"     = "true"
-  }
-}
+#resource "lxd_network" "lxdbr0" {
+#  name = "lxdbr0"
+#  description = "bridge interface for all containers to access hosts internet"
+#  config = {
+#    "ipv4.address" = "10.39.58.1/24"
+#    "ipv4.nat"     = "true"
+#    "ipv6.address" = "fd42:38a5:c677:b741::1/64"
+#    "ipv6.nat"     = "true"
+#  }
+#}
 output "second-ip" {
   value = lxd_container.second.ip_address
 }
