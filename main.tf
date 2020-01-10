@@ -26,7 +26,7 @@ resource "lxd_container" "ubuntu" {
   config     = {}
   ephemeral  = false
   limits     = {
-      "memory" = "128MB"
+      "memory" = "512MB"
       "cpu" = 1
   }
   name       = "ubuntu${count.index + 1}"
@@ -42,7 +42,7 @@ resource "lxd_container" "centos" {
   config     = {}
   ephemeral  = false
   limits     = {
-      "memory" = "128MB"
+      "memory" = "512MB"
       "cpu" = 1
   }
   name       = "centos${count.index +1}"
@@ -60,10 +60,17 @@ resource "lxd_profile" "ansible_class" {
         "security.nesting" = "true"
         "user.user-data"   = <<-EOT
             #cloud-config
-            package_update: true
-            package_upgrade: true
+            apt:
+              preserve_sources_list: false
+              primary:
+                - arches:
+                  - amd64
+                  uri: "http://mirror.0x.sg/ubuntu/"
+              security:
+                - arches:
+                  - amd64
+                  uri: "http://security.ubuntu.com/ubuntu/"
             packages:
-              - python3
             groups:
               - localadmin
             users:
@@ -73,7 +80,7 @@ resource "lxd_profile" "ansible_class" {
                 groups: admin, docker
                 shell: /bin/bash
                 sudo: ALL=(ALL) NOPASSWD:ALL
-            locale: en_SG.UTF-8
+            locale: C.UTF-8
             locale_configfile: /etc/default/locale
         EOT
     }
