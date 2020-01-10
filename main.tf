@@ -9,92 +9,134 @@ provider "lxd" {
     password = "pass"
     default  = true
   }
+  version = "~> 1.2"
 }
 # image resources
-resource "lxd_cached_image" "ubuntu1804" {
-  source_remote = "ubuntu"
-  source_image = "18.04"
+resource "lxd_cached_image" "bionic" {
+  source_remote = "ubuntu-daily"
+  source_image = "bionic"
 }
 resource "lxd_cached_image" "centos7" {
   source_remote = "images"
   source_image  = "centos/7"
 }
 # containers
-resource "lxd_container" "first" {
+resource "lxd_container" "ubuntu" {
+  count = 3
   config     = {}
   ephemeral  = false
   limits     = {
       "memory" = "128MB"
       "cpu" = 1
   }
-  name       = "first"
+  name       = "ubuntu${count.index + 1}"
   profiles   = [
-      "terraform_default",
+      "default", "ansible-class", "ubuntu${count.index + 1}"
   ]
-  image      = "lxd_cached_image.ubuntu1804"
+  image      = lxd_cached_image.bionic.fingerprint
   wait_for_network = false
 }
-resource "lxd_container" "second" {
+
+resource "lxd_container" "centos" {
+  count = 3
   config     = {}
   ephemeral  = false
   limits     = {
       "memory" = "128MB"
       "cpu" = 1
   }
-  name       = "second"
+  name       = "centos${count.index +1}"
   profiles   = [
-      "terraform_default",
+      "default", "ansible-class", "centos${count.index +1}"
   ]
-  image      = "lxd_cached_image.centos7"
+  image      = lxd_cached_image.centos7.fingerprint
   wait_for_network = false
 }
-# Profile
-resource "lxd_profile" "terraform_default" {
-    config      = {}
-    description = "Default LXD profile created by terrraform"
-    name        = "terraform_default"
-    device {
-        name       = "root"
-        properties = {
-            "path" = "/"
-            "pool" = "lxd"
-        }
-        type       = "disk"
+# lxd_profile.ansible_class
+resource "lxd_profile" "ansible_class" {
+    config = {
+        "limits.cpu"       = "1"
+        "limits.memory"    = "256MB"
+        "security.nesting" = "true"
+        "user.user-data"   = <<-EOT
+            #cloud-config
+            package_update: true
+            package_upgrade: true
+            packages:
+              - python3
+            groups:
+              - localadmin
+            users:
+              - name: localadmin
+                gecos: localadmin
+                primary-group: localadmin
+                groups: admin, docker
+                shell: /bin/bash
+                sudo: ALL=(ALL) NOPASSWD:ALL
+            locale: en_SG.UTF-8
+            locale_configfile: /etc/default/locale
+        EOT
     }
+    name   = "ansible-class"
 
     device {
-        name       = "eth0"
+        name       = "eth1"
         properties = {
             "nictype" = "bridged"
-            "parent" = "lxd_network.lxdbr0.name"
+            "parent"  = "lxdbr1"
         }
         type       = "nic"
     }
 }
-# Storage Pool
-#resource "lxd_storage_pool" "default" {
-#  config = {
-#      "size"   = "5GB"
-#      "source" = "/var/lib/lxd/disks/default.img"
-#      "zfs.pool_name" = "default"
-#  }
-#  driver = "zfs"
-#  name   = "default"
-#}
-# Bridge Network
-#resource "lxd_network" "lxdbr0" {
-#  name = "lxdbr0"
-#  description = "bridge interface for all containers to access hosts internet"
-#  config = {
-#    "ipv4.address" = "10.39.58.1/24"
-#    "ipv4.nat"     = "true"
-#    "ipv6.address" = "fd42:38a5:c677:b741::1/64"
-#    "ipv6.nat"     = "true"
-#  }
-#}
-output "second-ip" {
-  value = lxd_container.second.ip_address
+
+# lxd_profile.centos:
+resource "lxd_profile" "centos" {
+    count = 3
+    config = {
+        "user.network-config" = <<-EOT
+            version: 1
+            config:
+              - type: physical
+                name: eth0
+                subnets:
+                  - type: dhcp
+                    ipv4: true
+                    control: auto
+              - type: physical
+                name: eth1
+                subnets:
+                  - type: static
+                    ipv4: true
+                    address: 192.168.0.4${count.index + 5}
+                    netmask: 255.255.255.0
+                    control: auto
+        EOT
+    }
+    name   = "centos${count.index +1}"
 }
-output "first-ip" {
-  value = lxd_container.first.ip_address
+
+# lxd_profile.ubuntu:
+resource "lxd_profile" "ubuntu" {
+    count = 3
+    config = {
+        "user.network-config" = <<-EOT
+            version: 1
+            config:
+              - type: physical
+                name: eth0
+                subnets:
+                  - type: dhcp
+                    ipv4: true
+                    control: auto
+              - type: physical
+                name: eth1
+                subnets:
+                  - type: static
+                    ipv4: true
+                    address: 192.168.0.4${count.index + 2}
+                    netmask: 255.255.255.0
+                    control: auto
+        EOT
+    }
+    name   = "ubuntu${count.index + 1}"
 }
